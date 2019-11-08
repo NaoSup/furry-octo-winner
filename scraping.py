@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
 import pandas as pd
 
 
@@ -21,17 +22,41 @@ driver.get(
     'https://www.myfrenchstartup.com/fr/liste-investisseurs')
 
 
-results = driver.find_element_by_xpath('//div[@id=\'bloc_resultat\']')
-list_results = wait.until(
-    EC.presence_of_element_located((By.XPATH, '//ul[@id="milieu"]')))
-options = list_results.find_elements_by_tag_name("li")
-for option in options:
-    link = option.find_element_by_xpath('//h6/a')
-    link.click()
-# items = list3.find_elements_by_tag_name("li")
-# for item in items:
-#     item
-#     print(item)
-# # list = driver.find_element_by_xpath(
-# #     '//ul[@id=\'milieu\']')
-# driver.close()
+pagination_list = wait.until(
+    EC.presence_of_element_located((By.CLASS_NAME, 'pagination')))
+current_page = pagination_list.find_element_by_class_name('active')
+next_page = current_page.find_element_by_xpath(".//following-sibling::li")
+next_page_link = next_page.find_element_by_xpath('.//a').get_attribute('href')
+next_page_class = next_page.get_attribute('class')
+while next_page_link is not None:
+    print(current_page.text)
+    list_results = wait.until(
+        EC.presence_of_element_located((By.XPATH, '//ul[@id="milieu"]')))
+    options = list_results.find_elements_by_tag_name("li")
+
+    links = []
+    for option in options:
+        links.append(option.find_element_by_xpath(
+            './/h6/a').get_attribute('href'))
+
+    for link in links:
+        driver.get(link)
+        # SAVE DATA
+        driver.back()
+
+    # DOM changed so try to get back current page and next page
+    pagination_list = wait.until(
+        EC.presence_of_element_located((By.CLASS_NAME, 'pagination')))
+    current_page = pagination_list.find_element_by_class_name('active')
+    next_page = current_page.find_element_by_xpath(".//following-sibling::li")
+
+    # Link of next page is javascript action
+    # For now: it seems to go back to page 1 and it loops endlessly on page 1
+    next_page.find_element_by_xpath('.//a').click()
+
+    # Is supposed to update current page and next page once we land one page 2, etc...
+    pagination_list = wait.until(
+        EC.presence_of_element_located((By.CLASS_NAME, 'pagination')))
+    current_page = pagination_list.find_element_by_class_name('active')
+    next_page = current_page.find_element_by_xpath("//following-sibling::li")
+    next_page_class = next_page.get_attribute('class')
